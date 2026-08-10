@@ -1,6 +1,7 @@
 # Questa / ModelSim generated files
 work/
-sim/
+sim/logs/
+sim/regression_report.txt
 backup_debug/
 uvm_lib/
 *.wlf
