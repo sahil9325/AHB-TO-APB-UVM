@@ -18,7 +18,7 @@ module tb_top;
     logic        PREADY;
 
     ahb_if ahb_vif (HCLK);
-
+     
     // AHB -> APB bridge
     ahb_apb_bridge bridge (
         .HCLK    (HCLK),
@@ -39,7 +39,34 @@ module tb_top;
         .PRDATA  (PRDATA),
         .PREADY  (PREADY)
     );
+    // =====================================================
+// SVA ASSERTIONS
+// =====================================================
 
+ahb_apb_assertions sva_checker (
+
+    .HCLK    (HCLK),
+    .HRESETn (HRESETn),
+
+    // AHB
+    .HSEL    (ahb_vif.HSEL),
+    .HWRITE  (ahb_vif.HWRITE),
+    .HADDR   (ahb_vif.HADDR),
+    .HWDATA  (ahb_vif.HWDATA),
+    .HRDATA  (ahb_vif.HRDATA),
+    .HREADY  (ahb_vif.HREADY),
+    .HRESP   (ahb_vif.HRESP),
+
+    // APB
+    .PSEL    (PSEL),
+    .PENABLE (PENABLE),
+    .PWRITE  (PWRITE),
+    .PADDR   (PADDR),
+    .PWDATA  (PWDATA),
+    .PRDATA  (PRDATA),
+    .PREADY  (PREADY)
+
+);
     // APB -> SRAM controller
     // IMPORTANT: this was commented out in your old tb_top.
     // Without it, PREADY is undriven and becomes X.
