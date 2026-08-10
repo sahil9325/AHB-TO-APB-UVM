@@ -36,7 +36,7 @@ module wait_state_tb;
     logic [31:0] PWDATA;
     logic [31:0] PRDATA;
     logic        PREADY;
-
+    logic        PSLVERR;
 
     // =========================================================
     // WAIT-STATE CONTROL
@@ -84,8 +84,8 @@ module wait_state_tb;
         .PWDATA  (PWDATA),
 
         .PRDATA  (PRDATA),
-        .PREADY  (PREADY)
-
+        .PREADY  (PREADY),
+        .PSLVERR (PSLVERR)
     );
 
 
@@ -219,7 +219,7 @@ module wait_state_tb;
         HWRITE = 1'b0;
         HWDATA = 32'h00000000;
         HBURST = 3'b000;
-
+        PSLVERR  = 1'b0;
 
         // -----------------------------------------------------
         // RESET
