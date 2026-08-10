@@ -37,5 +37,6 @@ import uvm_pkg::*;
 `include "test/base_test.sv"
 `include "test/write_read_test.sv"
 `include "test/burst_test.sv"
+`include "test/multi_write_read_test.sv"
 
 endpackage
