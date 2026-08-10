@@ -8,17 +8,17 @@ module tb_top;
 
     logic HCLK;
     logic HRESETn;
-
+    logic        PREADY;
+    logic        PSLVERR;
     logic        PSEL;
     logic        PENABLE;
     logic        PWRITE;
     logic [31:0] PADDR;
     logic [31:0] PWDATA;
     logic [31:0] PRDATA;
-    logic        PREADY;
 
     ahb_if ahb_vif (HCLK);
-     
+
     // AHB -> APB bridge
     ahb_apb_bridge bridge (
         .HCLK    (HCLK),
@@ -37,7 +37,8 @@ module tb_top;
         .PADDR   (PADDR),
         .PWDATA  (PWDATA),
         .PRDATA  (PRDATA),
-        .PREADY  (PREADY)
+        .PREADY  (PREADY),
+        .PSLVERR (PSLVERR)
     );
     // =====================================================
 // SVA ASSERTIONS
@@ -64,8 +65,8 @@ ahb_apb_assertions sva_checker (
     .PADDR   (PADDR),
     .PWDATA  (PWDATA),
     .PRDATA  (PRDATA),
-    .PREADY  (PREADY)
-
+    .PREADY  (PREADY),
+    .PSLVERR (PSLVERR)
 );
     // APB -> SRAM controller
     // IMPORTANT: this was commented out in your old tb_top.
@@ -82,8 +83,8 @@ ahb_apb_assertions sva_checker (
         .PWDATA  (PWDATA),
 
         .PRDATA  (PRDATA),
-        .PREADY  (PREADY)
-
+        .PREADY  (PREADY),
+        .PSLVERR (PSLVERR)
     );
 
     // 100 MHz clock
@@ -125,7 +126,7 @@ ahb_apb_assertions sva_checker (
     initial begin
         forever begin
             @(posedge HCLK);
- 
+
             $display(
                 "[APB_DEBUG] t=%0t STATE=%0d HSEL=%0b HWRITE=%0b HADDR=%08h HWDATA=%08h | PSEL=%0b PENABLE=%0b PWRITE=%0b PADDR=%08h PWDATA=%08h PREADY=%0b PRDATA=%08h",
                 $time,
@@ -140,7 +141,9 @@ ahb_apb_assertions sva_checker (
                 PADDR,
                 PWDATA,
                 PREADY,
-                PRDATA
+                PSLVERR,
+                PRDATA, ahb_vif.HREADY,
+                ahb_vif.HRESP
             );
          end
      end

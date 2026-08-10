@@ -19,8 +19,8 @@ module ahb_apb_assertions (
     input logic [31:0] PADDR,
     input logic [31:0] PWDATA,
     input logic [31:0] PRDATA,
-    input logic        PREADY
-
+    input logic        PREADY,
+    input logic        PSLVERR
 );
 
     default clocking cb @(posedge HCLK);
@@ -157,14 +157,18 @@ module ahb_apb_assertions (
     // ERROR RESPONSE
     // =========================================================
 
-    // Current bridge does not generate APB/AHB errors.
-    // Therefore HRESP must remain LOW.
-    property p_no_ahb_error;
-        HRESETn |-> !HRESP;
+    // When an APB transfer completes, HRESP must match PSLVERR.
+    // This verifies APB-to-AHB error response propagation.
+    property p_error_response_consistency;
+
+    (PSEL && PENABLE && PREADY)
+        |-> (HRESP == PSLVERR);
+
     endproperty
 
-    assert property (p_no_ahb_error)
-        else $error("[SVA] Unexpected HRESP error asserted");
+    assert property (p_error_response_consistency)
 
-
+    else $error(
+        "[SVA] HRESP does not match APB PSLVERR"
+    );
 endmodule

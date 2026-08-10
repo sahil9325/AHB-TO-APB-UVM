@@ -10,25 +10,30 @@ module apb_sram_ctrl(
     input  logic [31:0] PWDATA,
 
     output logic [31:0] PRDATA,
-    output logic        PREADY
+    output logic        PREADY,
+    output logic        PSLVERR
 );
 
     logic [31:0] mem [0:255];
 
-    // --------------------------------------------------
-    // APB response
-    //
-    // This SRAM is a zero-wait-state APB peripheral.
-    // --------------------------------------------------
+
+    // =========================================================
+    // APB RESPONSE
+    // =========================================================
 
     always_comb begin
 
-        PREADY = 1'b0;
-        PRDATA = 32'h00000000;
+        PREADY  = 1'b0;
+        PRDATA  = 32'h00000000;
+        PSLVERR = 1'b0;
+
 
         if (PSEL && PENABLE) begin
 
             PREADY = 1'b1;
+
+            // Normal SRAM never generates an error.
+            PSLVERR = 1'b0;
 
             if (!PWRITE)
                 PRDATA = mem[PADDR[7:0]];
@@ -38,20 +43,18 @@ module apb_sram_ctrl(
     end
 
 
-    // --------------------------------------------------
+    // =========================================================
     // SRAM WRITE
-    //
-    // Perform the write directly when APB ACCESS is
-    // active.
-    // --------------------------------------------------
+    // =========================================================
 
     always_ff @(posedge PCLK or negedge PRESETn) begin
 
         if (!PRESETn) begin
 
-            // Nothing required for SRAM initialization.
+            // No SRAM initialization required.
 
         end
+
         else if (PSEL && PENABLE && PWRITE) begin
 
             mem[PADDR[7:0]] <= PWDATA;
@@ -67,9 +70,9 @@ module apb_sram_ctrl(
     end
 
 
-    // --------------------------------------------------
+    // =========================================================
     // DEBUG
-    // --------------------------------------------------
+    // =========================================================
 
     always @(posedge PCLK) begin
 
@@ -84,6 +87,7 @@ module apb_sram_ctrl(
                 );
 
             end
+
             else begin
 
                 $display(
