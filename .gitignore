@@ -1,19 +1,15 @@
 # Questa / ModelSim generated files
 work/
+sim/
+backup_debug/
+uvm_lib/
 *.wlf
-transcript
 *.log
 *.jou
-*.pb
-*.qdb
-*.qtl
+*.vstf
+transcript
 
-# OS/editor files
+# Temporary/editor files
 *.swp
 *.swo
 *~
-.DS_Store
-
-# Temporary files
-tmp/
-temp/
