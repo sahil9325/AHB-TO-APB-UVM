@@ -20,7 +20,7 @@ module sva_violation_tb;
     logic [31:0] PWDATA;
     logic [31:0] PRDATA;
     logic        PREADY;
-
+    logic        PSLVERR;
     // =========================================================
     // CLOCK
     // =========================================================
@@ -53,7 +53,8 @@ module sva_violation_tb;
         .PADDR   (PADDR),
         .PWDATA  (PWDATA),
         .PRDATA  (PRDATA),
-        .PREADY  (PREADY)
+        .PREADY  (PREADY),
+        .PSLVERR (PSLVERR)
     );
 
     // =========================================================
@@ -80,6 +81,7 @@ module sva_violation_tb;
         PWDATA  = 32'h0;
         PRDATA  = 32'h0;
         PREADY  = 1'b0;
+        PSLVERR = 1'b0;
 
         // Release reset
         repeat (2) @(posedge HCLK);
