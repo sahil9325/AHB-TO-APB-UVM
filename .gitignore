@@ -1,0 +1,19 @@
+# Questa / ModelSim generated files
+work/
+*.wlf
+transcript
+*.log
+*.jou
+*.pb
+*.qdb
+*.qtl
+
+# OS/editor files
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+tmp/
+temp/
