@@ -27,6 +27,9 @@ import uvm_pkg::*;
 // Scoreboard
 `include "scoreboard/ahb_scoreboard.sv"
 
+// Coverage
+//`include "coverage/ahb_coverage.sv"
+
 // Environment
 `include "env/ahb_env.sv"
 
