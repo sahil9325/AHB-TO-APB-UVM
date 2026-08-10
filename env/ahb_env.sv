@@ -4,6 +4,7 @@ class ahb_env extends uvm_env;
 
     ahb_agent      agent;
     ahb_scoreboard scoreboard;
+    ahb_coverage   coverage;
 
     function new(
         string name = "ahb_env",
@@ -11,6 +12,11 @@ class ahb_env extends uvm_env;
     );
         super.new(name, parent);
     endfunction
+
+
+    // =========================================================
+    // BUILD
+    // =========================================================
 
     function void build_phase(uvm_phase phase);
 
@@ -26,14 +32,30 @@ class ahb_env extends uvm_env;
             this
         );
 
+        coverage = ahb_coverage::type_id::create(
+            "coverage",
+            this
+        );
+
     endfunction
+
+
+    // =========================================================
+    // CONNECT
+    // =========================================================
 
     function void connect_phase(uvm_phase phase);
 
         super.connect_phase(phase);
 
+        // Monitor -> Scoreboard
         agent.monitor.analysis_port.connect(
             scoreboard.analysis_export
+        );
+
+        // Monitor -> Functional Coverage
+        agent.monitor.analysis_port.connect(
+            coverage.analysis_export
         );
 
     endfunction

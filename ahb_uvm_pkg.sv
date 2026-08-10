@@ -14,6 +14,7 @@ import uvm_pkg::*;
 `include "sequence/ahb_write_read_seq.sv"
 `include "sequence/ahb_multi_write_read_seq.sv"
 `include "sequence/ahb_burst_seq.sv"
+`include "sequence/ahb_coverage_seq.sv"
 
 // Driver
 `include "driver/ahb_driver.sv"
@@ -28,7 +29,7 @@ import uvm_pkg::*;
 `include "scoreboard/ahb_scoreboard.sv"
 
 // Coverage
-//`include "coverage/ahb_coverage.sv"
+`include "coverage/ahb_coverage.sv"
 
 // Environment
 `include "env/ahb_env.sv"
@@ -38,5 +39,6 @@ import uvm_pkg::*;
 `include "test/write_read_test.sv"
 `include "test/burst_test.sv"
 `include "test/multi_write_read_test.sv"
+`include "test/coverage_test.sv"
 
 endpackage
