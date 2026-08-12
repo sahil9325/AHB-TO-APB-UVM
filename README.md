@@ -1,475 +1,266 @@
-# AHB-to-APB Bridge — UVM-Based Verification
-
-A SystemVerilog/UVM verification project for an AMBA AHB-to-APB bridge. The project includes RTL verification, UVM stimulus and checking, functional coverage, SystemVerilog Assertions (SVA), APB wait-state verification, APB error-response verification, and an automated regression flow using Questa.
-
-## Project Overview
-
-The verification environment targets the following goals:
-
-- Verify AHB write/read functionality.
-- Verify multiple write/read transactions.
-- Verify incrementing burst transfers.
-- Verify APB SETUP-to-ACCESS protocol behavior.
-- Verify APB wait-state handling.
-- Verify APB error-response propagation.
-- Detect intentional protocol violations using SVA.
-- Measure functional coverage across operation type, burst type, address ranges, and operation/burst combinations.
-- Provide a repeatable UVM + SVA regression.
-
-## Architecture
-
-```text
-                    AHB MASTER / UVM AGENT
-                              |
-                              | AHB transaction
-                              v
-                     +-------------------+
-                     |   AHB-APB BRIDGE  |
-                     |                   |
-                     |   IDLE            |
-                     |    |              |
-                     |   SETUP           |
-                     |    |              |
-                     |   ACCESS          |
-                     +---------+---------+
-                               |
-                               | APB transaction
-                               v
-                     +-------------------+
-                     |   APB PERIPHERAL  |
-                     |   SRAM CONTROLLER |
-                     +---------+---------+
-                               |
-                               v
-                           APB SRAM
-```
-
-## Repository Structure
-
-```text
-AHB-TO-APB-UVM/
-├── rtl/
-│   ├── ahb_apb_bridge.sv
-│   └── apb_sram_ctrl.sv
-├── interface/
-│   └── ahb_if.sv
-├── transaction/
-│   └── ahb_transaction.sv
-├── sequence/
-│   ├── ahb_base_sequence.sv
-│   ├── ahb_write_read_seq.sv
-│   ├── ahb_multi_write_read_seq.sv
-│   ├── ahb_burst_seq.sv
-│   └── ahb_coverage_seq.sv
-├── sequencer/
-│   └── ahb_sequencer.sv
-├── driver/
-│   └── ahb_driver.sv
-├── monitor/
-│   └── ahb_monitor.sv
-├── agent/
-│   └── ahb_agent.sv
-├── scoreboard/
-│   └── ahb_scoreboard.sv
-├── coverage/
-│   └── ahb_coverage.sv
-├── env/
-│   └── ahb_env.sv
-├── test/
-│   ├── base_test.sv
-│   ├── write_read_test.sv
-│   ├── multi_write_read_test.sv
-│   ├── burst_test.sv
-│   └── coverage_test.sv
-├── assertions/
-│   ├── ahb_apb_assertions.sv
-│   └── tb/
-│       ├── sva_violation_tb.sv
-│       ├── wait_state_tb.sv
-│       └── error_response_tb.sv
-├── top/
-│   └── tb_top.sv
-├── sim/
-│   └── regression.sh
-├── ahb_uvm_pkg.sv
-├── .gitignore
-└── README.md
-```
-
-## UVM Architecture
-
-```text
-                    +----------------------+
-                    |        TEST          |
-                    +----------+-----------+
-                               |
-                               v
-                    +----------------------+
-                    |       UVM ENV        |
-                    |                      |
-                    |  +---------------+   |
-                    |  |   AHB AGENT   |   |
-                    |  |               |   |
-                    |  | Sequencer     |   |
-                    |  |     |         |   |
-                    |  |     v         |   |
-                    |  | Driver -----> DUT
-                    |  |               |   |
-                    |  | Monitor <-----|---+
-                    |  +-------+-------+   |
-                    |          |            |
-                    |          v            |
-                    |     Scoreboard        |
-                    |          |            |
-                    |          v            |
-                    |       Coverage        |
-                    +-----------------------+
-```
-
-### Transaction
-
-`ahb_transaction` represents an AHB transfer. It contains fields for:
-
-- `write`
-- `addr`
-- `wdata`
-- `rdata`
-- `burst`
-- `ready`
-- `resp`
-
-### Sequences
-
-Directed sequences generate:
-
-- Basic write/read traffic.
-- Multiple write/read traffic.
-- INCR burst traffic.
-- Coverage-closure traffic.
+# AHB-to-APB Bridge — RTL Design & UVM Verification
 
-### Driver
+<p align="center">
+  <strong>SystemVerilog · UVM · AMBA AHB/APB · RTL/FSM · SVA · Functional Coverage · Questa</strong>
+</p>
 
-The driver converts `ahb_transaction` objects into pin-level AHB activity.
+<p align="center">
+  <a href="https://github.com/sahil9325/AHB-TO-APB-UVM">Repository</a> ·
+  <a href="https://github.com/sahil9325/AHB-TO-APB-UVM/tree/development">Development Branch</a>
+</p>
 
-### Monitor
+---
 
-The monitor observes completed AHB transactions and publishes them through an analysis port.
+## Executive Snapshot
 
-### Scoreboard
+A complete **AHB-to-APB bridge RTL and verification project** implemented in SystemVerilog.
 
-The scoreboard maintains expected values from writes and compares returned read data against those expected values.
+The implemented bridge captures an AHB request, translates it through an **IDLE → SETUP → ACCESS** FSM, drives an APB transaction to an SRAM controller, handles APB wait states, and propagates `PSLVERR` to the AHB-side `HRESP`.
 
-### Coverage
+The verification environment uses **UVM**, a reference-memory scoreboard, functional coverage and SVA-based protocol checking.
 
-The coverage subscriber samples monitored transactions and reports functional coverage at the end of the UVM run.
+| Result | Final Status |
+|---|---:|
+| Regression | **7 / 7 PASS** |
+| Functional coverage | **100% — 15 / 15 defined bins** |
+| UVM errors | **0** |
+| UVM fatal errors | **0** |
+| Burst bins | **SINGLE / INCR / INCR4** |
+| APB wait-state test | **PASS** |
+| APB error-response test | **PASS** |
+| SVA violation test | **PASS** |
 
-## Scoreboard / Reference Checking
+> **Coverage note:** 100% refers to the 15 functional bins explicitly defined in `coverage/ahb_coverage.sv`; it is not a claim that the design is mathematically bug-free.
 
-For a write:
+---
 
-```text
-AHB WRITE
-   |
-   +--> address = 0x08
-   +--> data    = 0xCAFEBABE
-             |
-             v
-       expected memory
-       [0x08] = CAFEBABE
-```
+# 1. Implemented RTL Architecture
 
-For a subsequent read:
+![Implemented AHB-to-APB bridge RTL architecture](docs/images/01_bridge_rtl_architecture_vertical.png)
 
-```text
-AHB READ
-   |
-   +--> address = 0x08
-             |
-             v
-       DUT returns CAFEBABE
-             |
-             v
-       Compare with expected
-             |
-        +----+----+
-        |         |
-       PASS      FAIL
-```
+The diagram above follows the actual structure of `rtl/ahbtoapb.sv`:
 
-Example successful result:
+- AHB request inputs: `HSEL`, `HADDR`, `HWRITE`, `HWDATA`, `HBURST`
+- Request capture registers: `addr_reg`, `wdata_reg`, `write_reg`, `burst_reg`
+- State register: `current_state`
+- Next-state logic: `IDLE`, `SETUP`, `ACCESS`
+- APB output logic: `PSEL`, `PENABLE`, `PWRITE`, `PADDR`, `PWDATA`
+- AHB response logic: `HRDATA`, `HREADY`, `HRESP`
+- APB inputs: `PRDATA`, `PREADY`, `PSLVERR`
 
-```text
-[SCOREBOARD] READ PASS:
-ADDR=00000008 EXPECTED=cafebabe ACTUAL=cafebabe
-```
+The bridge's implemented RTL uses separate sequential logic for state/request capture and combinational logic for next-state, APB outputs and AHB response generation.
 
-## Functional Coverage
-
-The coverage model tracks:
+---
 
-### Operation type
+# 2. Implemented Bridge FSM
 
-- READ
-- WRITE
+![Implemented bridge FSM](docs/images/02_bridge_fsm_vertical.png)
 
-### Burst type
+### State behavior
 
-- SINGLE
-- INCR
-- INCR4
+**IDLE**
+- Captures a request when `HSEL=1`.
+- `HREADY=1`.
 
-### Address ranges
-
-- `0x00 - 0x3F`
-- `0x40 - 0x7F`
-- `0x80 - 0xBF`
-- `0xC0 - 0xFF`
-
-### Cross coverage
-
-The environment tracks:
-
-- READ × SINGLE
-- READ × INCR
-- READ × INCR4
-- WRITE × SINGLE
-- WRITE × INCR
-- WRITE × INCR4
-
-The dedicated coverage sequence targets previously uncovered combinations and address ranges.
-
-## SystemVerilog Assertions
-
-The SVA checker verifies protocol-level behavior between AHB and APB.
-
-A key checked relationship is:
-
-```text
-APB SETUP -> APB ACCESS
-```
-
-The intentional violation test produces:
-
-```text
-[SVA] APB SETUP was not followed by ACCESS
-```
-
-The test is considered successful when this expected assertion violation is detected.
-
-The SVA environment also includes APB error-response checking through `PSLVERR`.
-
-## APB Wait-State Verification
-
-The wait-state test holds `PREADY` low for multiple APB ACCESS cycles.
-
-Expected behavior:
-
-```text
-APB SETUP
-    |
-    v
-APB ACCESS
-    |
-    +---- PREADY=0 ----+
-    |                  |
-    +------------------+
-    |
-    | PREADY=1
-    v
-Transfer complete
-```
-
-Observed successful behavior:
-
-```text
-PREADY remained LOW for multiple cycles
-Bridge remained in ACCESS
-HREADY remained LOW during wait states
-Transfer completed after PREADY became HIGH
-Observed wait cycles = 3
-```
-
-The test completed with zero errors and zero warnings.
-
-## APB Error Response
-
-The error-response test verifies propagation of an APB slave error toward the AHB side:
-
-```text
-APB PSLVERR
-     |
-     v
-AHB-APB Bridge
-     |
-     v
-AHB HRESP
-```
-
-The APB `PSLVERR` signal is connected into the SVA testbench so that error behavior can be checked explicitly.
-
-## Regression Results
-
-The automated regression executes seven tests:
-
-| # | Test | Result |
-|---|---|---|
-| 1 | Basic Write/Read | PASS |
-| 2 | Multiple Write/Read | PASS |
-| 3 | INCR Burst | PASS |
-| 4 | Coverage Closure | PASS |
-| 5 | SVA Violation | PASS |
-| 6 | APB Wait State | PASS |
-| 7 | APB Error Response | PASS |
+**SETUP**
+- `PSEL=1`
+- `PENABLE=0`
+- `HREADY=0`
+
+**ACCESS**
+- `PSEL=1`
+- `PENABLE=1`
+- `HREADY=PREADY`
+- Remains in ACCESS while `PREADY=0`.
+- On completion, `HRESP=PSLVERR`.
+- For reads, `HRDATA=PRDATA`.
+
+These behaviors are directly reflected in the implemented bridge RTL. citeturn1view0
+
+---
+
+# 3. Complete UVM Architecture
+
+![Implemented UVM architecture](docs/images/03_uvm_architecture_vertical.png)
+
+The actual UVM package includes:
+
+`transaction → sequencer → sequences → driver → monitor → agent → scoreboard → coverage → environment → tests`
+
+The environment instantiates the AHB agent, scoreboard and coverage subscriber, while the agent contains the sequencer, driver and monitor. citeturn1view1
+
+### UVM data flow
+
+**Sequence → Sequencer → Driver → DUT → Monitor → Scoreboard / Coverage**
+
+The driver drives the AHB virtual interface, while the monitor publishes observed transactions through its analysis port.
+
+---
+
+# 4. Detailed Verification Flow
+
+![Detailed UVM verification flow](docs/images/04_detailed_uvm_flow_vertical.png)
+
+The completed environment contains dedicated stimulus for:
+
+- Basic write/read
+- Multiple write/read transactions
+- INCR burst traffic
+- Coverage-closure traffic
+
+The package explicitly includes these sequences and tests. citeturn1view1
+
+---
+
+# 5. Functional Coverage Model
+
+![Implemented functional coverage](docs/images/05_functional_coverage_vertical.png)
+
+The implemented coverage model defines exactly **15 bins**:
+
+- **2 operation bins:** READ, WRITE
+- **3 burst bins:** SINGLE, INCR, INCR4
+- **4 address bins:** `00–3F`, `40–7F`, `80–BF`, `C0–FF`
+- **6 operation × burst bins:** READ×3 + WRITE×3
+
+Total:
+
+**2 + 3 + 4 + 6 = 15 bins**
+
+The coverage source explicitly defines `total_bins = 15` and reports `covered_bins / total_bins`. citeturn1view2
 
 ### Final result
 
-```text
-Total tests     : 7
-Tests passed    : 7
-Tests failed    : 0
+**100% functional coverage = 15 / 15 defined bins**
 
-REGRESSION STATUS : PASS
+---
+
+# 6. APB Wait-State & Error Verification
+
+![APB wait-state and error-response verification](docs/images/06_apb_wait_error_vertical.png)
+
+The verification suite checks:
+
+### Wait states
+
+`PREADY=0` keeps the bridge in ACCESS and holds AHB completion until the peripheral becomes ready.
+
+The repository's documented wait-state test observes **3 wait cycles** before completion. citeturn1view3
+
+### Error response
+
+At APB transfer completion:
+
+```text
+HRESP = PSLVERR
 ```
 
-The SVA violation test is intentionally expected to trigger an assertion; detecting that violation is the PASS condition.
+The implemented bridge RTL explicitly propagates `PSLVERR` to `HRESP` when `PREADY=1`. citeturn1view0
 
-## Example UVM Output
+---
+
+# 7. Regression Results
+
+| # | Test | Result |
+|---:|---|:---:|
+| 1 | Basic Write/Read | **PASS** |
+| 2 | Multiple Write/Read | **PASS** |
+| 3 | INCR Burst | **PASS** |
+| 4 | Coverage Closure | **PASS** |
+| 5 | SVA Violation | **PASS** |
+| 6 | APB Wait State | **PASS** |
+| 7 | APB Error Response | **PASS** |
+
+**7 / 7 PASS · 0 failed**
+
+The SVA violation test is intentionally designed to detect a protocol violation; detection of the expected violation is the PASS condition. citeturn1view3
+
+---
+
+# 8. Repository Structure
 
 ```text
-[AHB_DRIVER] Driving:
-WRITE=1 ADDR=00000008 WDATA=cafebabe BURST=000
-
-[AHB_MONITOR] Observed AHB:
-WRITE=1 ADDR=00000008 WDATA=cafebabe
-RDATA=00000000 BURST=000 RESP=0
-
-[SCOREBOARD] WRITE:
-ADDR=00000008 DATA=cafebabe
-
-[SCOREBOARD] READ PASS:
-ADDR=00000008 EXPECTED=cafebabe ACTUAL=cafebabe
+AHB-TO-APB-UVM/
+├── rtl/            # AHB-to-APB bridge + SRAM RTL
+├── interface/      # AHB interface / simulation interface
+├── transaction/    # UVM transaction
+├── sequence/       # UVM sequences
+├── sequencer/      # UVM sequencer
+├── driver/         # AHB driver
+├── monitor/        # AHB monitor
+├── agent/          # UVM agent
+├── scoreboard/     # Reference-memory checking
+├── coverage/       # Functional coverage
+├── env/            # UVM environment
+├── test/           # UVM tests
+├── assertions/     # SVA + dedicated protocol tests
+├── top/            # Simulation top
+├── sim/            # Questa regression/debug scripts
+├── docs/           # Verification documentation
+└── ahb_uvm_pkg.sv  # UVM package
 ```
 
-## Simulation Environment
+---
 
-- SystemVerilog
-- UVM 1.1d
-- Questa Altera Starter FPGA Edition 2025.2
-- Linux / WSL
-- Git / GitHub
+# 9. Interactive Project Summary
 
-## Running the Regression
+## 🔎 Explore the Project Visually
 
-From the project root:
+For a presentation-style walkthrough of the complete implementation and verification work:
+
+**[▶ Open the Interactive AHB-to-APB Project Summary](project_summary/AHB_APB_Bridge_Summary.html)**
+
+The HTML summary is intended as the **visual executive overview**, while this README provides the technical documentation and source-code navigation.
+
+---
+
+# 10. Simulation
+
+The repository includes Questa/ModelSim simulation and regression scripts.
 
 ```bash
 cd ~/majorproj
-```
-
-Make the regression script executable if required:
-
-```bash
 chmod +x sim/regression.sh
-```
-
-Run:
-
-```bash
 ./sim/regression.sh
 ```
 
-Syntax-check the script:
+Individual UVM test:
 
 ```bash
-bash -n sim/regression.sh
+vsim -c work.tb_top +UVM_TESTNAME=write_read_test -do "run -all; quit -f"
 ```
 
-The regression script compiles the UVM environment and SVA testbenches and executes the configured seven-test regression.
+---
 
-## Running Individual UVM Tests
+# 11. Technology Stack
 
-After compilation, select a test with:
+`SystemVerilog` · `UVM` · `AMBA AHB/APB` · `RTL/FSM` · `SVA` · `Functional Coverage` · `Questa/ModelSim` · `Vivado` · `Linux/WSL` · `Git/GitHub`
 
-```bash
-vsim -c work.tb_top   +UVM_TESTNAME=write_read_test   -do "run -all; quit -f"
-```
+---
 
-Available UVM tests:
+# 12. Key Verification Concepts Demonstrated
 
-```text
-write_read_test
-multi_write_read_test
-burst_test
-coverage_test
-```
+- AMBA AHB/APB protocol conversion
+- FSM-based RTL control
+- AHB request capture and APB signal generation
+- APB SRAM integration
+- UVM transaction-level stimulus
+- Sequencer / driver / monitor architecture
+- Scoreboard reference-memory checking
+- Functional and cross coverage
+- SVA protocol checking
+- APB wait-state verification
+- APB error-response verification
+- Automated regression
+- Questa simulation/debug workflow
 
-## SVA Testbenches
-
-The assertion testbenches include:
-
-```text
-sva_violation_tb
-wait_state_tb
-error_response_tb
-```
-
-## Verification Feature Status
-
-| Feature | Status |
-|---|---|
-| AHB write/read | Implemented |
-| Multiple transactions | Implemented |
-| INCR burst | Implemented |
-| UVM driver | Implemented |
-| UVM monitor | Implemented |
-| UVM scoreboard | Implemented |
-| Functional coverage | Implemented |
-| Coverage closure sequence | Implemented |
-| SVA protocol checking | Implemented |
-| Intentional SVA violation test | Implemented |
-| APB wait-state verification | Implemented |
-| APB error-response verification | Implemented |
-| Automated regression | Implemented |
-| Seven-test regression | PASS |
-
-## Skills Demonstrated
-
-- SystemVerilog
-- UVM sequence/sequencer/driver architecture
-- UVM monitors and analysis ports
-- Scoreboard-based checking
-- Directed verification
-- Burst verification
-- Functional coverage
-- Cross coverage
-- Coverage-driven stimulus
-- SystemVerilog Assertions
-- Protocol violation testing
-- APB wait-state modeling
-- Error-response verification
-- Automated simulation regression
-- Git/GitHub workflow
-
-## Future Enhancements
-
-Potential next steps:
-
-- Constrained-random transaction generation
-- More complete AHB burst support
-- Additional AHB/APB protocol assertions
-- Assertion coverage reporting
-- Formal verification of bridge properties
-- Separate APB agent and monitor
-- APB-side scoreboard/reference model
-- UVM register abstraction layer (RAL)
-- CI-based regression using GitHub Actions
+---
 
 ## Author
 
-**Sahil Jangra**
-
+**Sahil Jangra**  
 Electronics & Communication Engineering
 
-Project: **AHB-to-APB Bridge — UVM-Based Verification**
+**Project:** AHB-to-APB Bridge — UVM-Based Verification
 
-Repository: https://github.com/sahil9325/AHB-TO-APB-UVM
+[GitHub Repository](https://github.com/sahil9325/AHB-TO-APB-UVM)
