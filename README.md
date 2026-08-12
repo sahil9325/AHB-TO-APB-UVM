@@ -208,7 +208,7 @@ AHB-TO-APB-UVM/
 
 For a presentation-style walkthrough of the complete implementation and verification work:
 
-**[▶ Open the Interactive AHB-to-APB Project Summary](docs/project_summary/AHB_APB_Bridge_Summary.html)**
+**[▶ Open the Interactive AHB-to-APB Project Summary]((https://sahil9325.github.io/AHB-TO-APB-UVM/project_summary/AHB_APB_Bridge_Summary.html))**
 
 The HTML summary is intended as the **visual executive overview**, while this README provides the technical documentation and source-code navigation.
 
